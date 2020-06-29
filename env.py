@@ -62,7 +62,7 @@ class Env:
         # Initialize tracking
         self.map = np.zeros([self.totalRows, self.totalCols])
         self.visited = np.ones([self.totalRows, self.totalCols])
-        self.local_map = np.zeros([self.totalRows / 8, self.totalCols / 8])
+        self.local_map = np.zeros([25, 25])
 
         # Reset partitions
         self.region_one = [0, 0]
@@ -71,10 +71,11 @@ class Env:
         self.region_four = [self.totalRows / 2, self.totalCols / 2]
 
         # Reset initial targets
-        self.target_one = self.region_one + self.totalRows / 4
-        self.target_two = self.region_two + self.totalRows / 4
-        self.target_three = self.region_three + self.totalRows / 4
-        self.target_four = self.region_four + self.totalRows / 4
+        self.target_one = [self.region_one[0] + self.totalRows / 4, self.region_one[1] + self.totalCols / 4]
+        self.target_two = [self.region_two[0] + self.totalRows / 4, self.region_two[1] + self.totalCols / 4]
+        self.target_three = [self.region_three[0] + self.totalRows / 4, self.region_three[1] + self.totalCols / 4]
+        self.target_four = [self.region_four[0] + self.totalRows / 4, self.region_four[1] + self.totalCols / 4]
+        self.local_target = [24, 24]  # TODO: this is just if you start in the top right-hand corner of the region
 
         # Reset env parameters
         self.start_row = self.sight_distance
@@ -89,9 +90,11 @@ class Env:
         state = np.append(state, 1)
         state = np.append(state, 1)
         state = np.append(state, 1)
-        state = np.reshape(state, [1, self.vision_size + 4])
+        state = np.reshape(state, [1, 1, self.vision_size + 4])
 
-        return state
+        flattened_local_map = self.local_map.reshape(1, 1, 625)
+
+        return state, flattened_local_map
 
     def step(self, action, time):
         self.done = False
@@ -101,25 +104,25 @@ class Env:
 
         # Drone not allowed to move outside of the current local map (updates when target is reached)
         if action == 0:
-            if self.row_position < self.local_map_upper:  # Forward one grid
+            if self.row_position < self.local_map_upper and self.row_position < (self.totalRows - self.sight_distance - 1):  # Forward one grid
                 next_row = self.row_position + 1
                 next_col = self.col_position
             else:
                 action = 4
         elif action == 1:
-            if self.col_position < self.local_map_upper:  # right one grid
+            if self.col_position < self.local_map_upper and self.col_position < (self.totalCols - self.sight_distance - 1):  # right one grid
                 next_row = self.row_position
                 next_col = self.col_position + 1
             else:
                 action = 4
         elif action == 2:
-            if self.row_position > self.local_map_lower:  # back one grid
+            if self.row_position > self.local_map_lower and self.row_position > self.sight_distance + 1:  # back one grid
                 next_row = self.row_position - 1
                 next_col = self.col_position
             else:
                 action = 4
         elif action == 3:
-            if self.col_position > self.local_map_lower:  # left one grid
+            if self.col_position > self.local_map_lower and self.col_position > self.sight_distance + 1:  # left one grid
                 next_row = self.row_position
                 next_col = self.col_position - 1
             else:
@@ -134,22 +137,25 @@ class Env:
         state = np.append(state, self.visited[self.row_position, self.col_position + 1])
         state = np.append(state, self.visited[self.row_position - 1, self.col_position])
         state = np.append(state, self.visited[self.row_position, self.col_position + 1])
-        state = np.reshape(state, [1, self.vision_size + 4])
+        state = np.reshape(state, [1, 1, self.vision_size + 4])
 
         reward = self.get_reward(image)
 
         self.visited_position()
         self.update_map(image)
 
-        if self.local_target_reached():
-            self.next_local_map()
-        self.local_map = self.get_local_map()
+        # TODO: include this once the end goal isn't the local target
+        #if self.local_target_reached():
+            #self.next_local_map()
 
-        # TODO: can instead set the done condition to be local target reached
-        if time > self.config.max_steps or self.target_reached(1):
+        self.local_map = self.get_local_map()
+        flattened_local_map = self.local_map.reshape(1, 1, 625)
+
+        # TODO: can instead set the done condition to be target reached
+        if time > self.config.max_steps or self.local_target_reached():
             self.done = True
 
-        return state, self.local_map, reward, self.done
+        return state, flattened_local_map, reward, self.done
 
     def get_reward(self, image):
         """
@@ -173,7 +179,7 @@ class Env:
         TODO: should this incorporate visited?
         :return: local_map
         """
-        local_map = self.map[self.local_map_lower:self.local_map_upper, self.local_map_lower:self.local_map_upper]
+        local_map = self.map[self.local_map_lower:self.local_map_upper+1, self.local_map_lower:self.local_map_upper+1]
         row, col = self.get_local_target(self.target_one) # TODO: based on which target actually aiming for
         local_map[row, col] = .5
         return local_map
@@ -223,7 +229,7 @@ class Env:
         :return: boolean, true if drone is at the local target position
         """
         target = False
-        if self.row_position == self.local_target[0] and self.col_position == self.local_target[1]:
+        if self.row_position == self.local_target[0] + self.local_map_lower and self.col_position == self.local_target[1] + self.local_map_lower:
             target = True
         return target
 
@@ -247,7 +253,7 @@ class Env:
             col = 0
         elif self.col_position < target[1]:
             col = 24
-        self.local_target = [row+self.local_map_upper, col+self.local_map_upper]
+        self.local_target = [row+self.local_map_lower, col+self.local_map_lower]
         return row, col
 
     def get_classified_drone_image(self):
@@ -292,6 +298,26 @@ class Env:
         plt.title("Drone Path")
         plt.savefig(fname)
         plt.clf()
+
+    def calculate_covered(self, size):
+        covered = 0
+        if size == 'local':
+            for i in range(25):
+                for j in range(25):
+                    if self.visited[i][j] < 1:
+                        covered += 1
+
+            percent_covered = covered / (25*25)
+
+        else:
+            for i in range(self.totalRows):
+                for j in range(self.totalCols):
+                    if self.visited[i][j] < 1:
+                        covered += 1
+
+            percent_covered = covered / (self.totalCols * self.totalRows)
+
+        return percent_covered
 
     def set_simulation_map(self):
         """
