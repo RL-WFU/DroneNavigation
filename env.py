@@ -55,7 +55,9 @@ class Env:
     def reset_environment(self):
         """
         Resets the environment at the beginning of a new episode
-        :return: state of the drone: flattened array of probabilities of mining in each cell within its vision
+        :return: state of the drone: flattened array of probabilities of mining in each cell within its vision with
+                 the binary "visited" tag for each of the four next positions
+                 TODO: consider appending the target position and distance (is local map alone enough?)
         """
         # Initialize tracking
         self.map = np.zeros([self.totalRows, self.totalCols])
@@ -83,6 +85,12 @@ class Env:
         # Get new drone state
         state = self.get_classified_drone_image()
         state = self.flatten_state(state)
+        state = np.append(state, 1)
+        state = np.append(state, 1)
+        state = np.append(state, 1)
+        state = np.append(state, 1)
+        state = np.reshape(state, [1, self.vision_size + 4])
+
         return state
 
     def step(self, action, time):
@@ -122,6 +130,11 @@ class Env:
 
         image = self.get_classified_drone_image()
         state = self.flatten_state(image)
+        state = np.append(state, self.visited[self.row_position + 1, self.col_position])
+        state = np.append(state, self.visited[self.row_position, self.col_position + 1])
+        state = np.append(state, self.visited[self.row_position - 1, self.col_position])
+        state = np.append(state, self.visited[self.row_position, self.col_position + 1])
+        state = np.reshape(state, [1, self.vision_size + 4])
 
         reward = self.get_reward(image)
 
