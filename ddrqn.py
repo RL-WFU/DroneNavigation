@@ -2,11 +2,11 @@ import random
 import numpy as np
 from collections import deque
 from keras.models import Sequential, Model
-from keras.layers import Dense, concatenate, Input
+from keras.layers import Dense, concatenate, Input, LSTM
 from keras.optimizers import Adam
 
 
-class DDQNAgent:
+class DDRQNAgent:
     def __init__(self, state_size, action_size):
         self.state_size = state_size
         self.action_size = action_size
@@ -21,16 +21,17 @@ class DDQNAgent:
         self.update_target_model()
 
     def _build_model(self):
-        first_input = Input(shape=(1, self.state_size+6))
+        first_input = Input(shape=(5, self.state_size+6))
         layer1 = Dense(64, activation='relu')(first_input)
         layer2 = Dense(10, activation='relu')(layer1)
 
-        second_input = Input(shape=(1, 625))
+        second_input = Input(shape=(5, 625))
         layer1_b = Dense(100, activation= 'relu')(second_input)
         layer2_b = Dense(100, activation='relu')(layer1_b)
 
         merge = concatenate([layer2, layer2_b])
-        layer3 = Dense(self.action_size, activation='linear')(merge)
+        lstm = LSTM(110)(merge)
+        layer3 = Dense(self.action_size, activation='linear')(lstm)
 
         model = Model(inputs=[first_input, second_input], outputs=layer3)
         model.compile(loss='mse',
@@ -57,10 +58,10 @@ class DDQNAgent:
             target_next = self.model.predict([next_state, next_local_map])
             target_val = self.target_model.predict([next_state, next_local_map])
             if done:
-                target[0][0][action] = reward
+                target[0][action] = reward
             else:
-                a = np.argmax(target_next[0][0])
-                target[0][0][action] = reward + self.gamma * target_val[0][0][a]
+                a = np.argmax(target_next[0])
+                target[0][action] = reward + self.gamma * target_val[0][a]
 
             self.model.fit([state, local_map], target, epochs=1, verbose=0)
         if self.epsilon > self.epsilon_min:

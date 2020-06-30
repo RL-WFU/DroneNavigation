@@ -4,5 +4,5 @@ class ConfigSimple(object):
     total_rows = 200
     total_cols = 200
 
-    num_episodes = 80
-    max_steps = 100
+    num_episodes = 500
+    max_steps = 200

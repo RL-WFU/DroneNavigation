@@ -75,12 +75,12 @@ for e in range(config.num_episodes):
         plt.savefig('ddqn_steps.png')
         plt.clf()
 
-        env.plot_path('ddqn_drone_path.jpg')
-        env.save_local_map('ddqn_local_map.jpg')
-        env.save_map('ddqn_map.jpg')
+    env.plot_path('ddqn_drone_path.jpg')
+    env.save_map('ddqn_map.jpg')
+    env.save_local_map('ddqn_local_map.jpg')
 
     print("episode: {}/{}, reward: {}, percent covered: {}, start position: {},{}, number of steps: {}"
-            .format(e, config.num_episodes, total_reward, episode_covered[e], env.start_row,
+            .format(e, config.num_episodes, total_reward, covered, env.start_row,
                     env.start_col, t))
 
 plt.plot(average_rewards)
@@ -95,4 +95,14 @@ plt.xlabel('Episode')
 plt.savefig('ddqn_average_coverage.png')
 plt.clf()
 
+plt.plot(episode_rewards)
+plt.ylabel('Episode reward')
+plt.xlabel('Episode')
+plt.savefig('ddqn_reward.png')
+plt.clf()
+
+plt.ylabel('Percent Covered')
+plt.xlabel('Episode')
+plt.savefig('ddqn_coverage.png')
+plt.clf()
 

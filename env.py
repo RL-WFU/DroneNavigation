@@ -2,6 +2,7 @@ import random
 import sys
 from ICRSsimulator import *
 import numpy as np
+from copy import deepcopy
 
 class Env:
     def __init__(self, config):
@@ -21,8 +22,10 @@ class Env:
         self.map = np.zeros([self.totalRows, self.totalCols])
         self.visited = np.ones([self.totalRows, self.totalCols])
         self.local_map = np.zeros([25, 25])
-        self.local_map_lower = 0
-        self.local_map_upper = 24
+        self.local_map_lower_row = 0
+        self.local_map_lower_col = 0
+        self.local_map_upper_row = 24
+        self.local_map_upper_col = 24
 
         # Define partitions
         self.region_one = [0, 0]
@@ -48,7 +51,7 @@ class Env:
 
         # Set reward values
         self.MINING_REWARD = 50
-        self.TARGET_REWARD = 200
+        self.TARGET_REWARD = 500
         self.VISITED_PENALTY = -5
         self.INVALID_PENALTY = -20 # TODO: do we need this or should we hard code to stay in bounds
 
@@ -62,7 +65,6 @@ class Env:
         # Initialize tracking
         self.map = np.zeros([self.totalRows, self.totalCols])
         self.visited = np.ones([self.totalRows, self.totalCols])
-        self.local_map = np.zeros([25, 25])
 
         # Reset partitions
         self.region_one = [0, 0]
@@ -75,11 +77,10 @@ class Env:
         self.target_two = [self.region_two[0] + self.totalRows / 4, self.region_two[1] + self.totalCols / 4]
         self.target_three = [self.region_three[0] + self.totalRows / 4, self.region_three[1] + self.totalCols / 4]
         self.target_four = [self.region_four[0] + self.totalRows / 4, self.region_four[1] + self.totalCols / 4]
-        self.local_target = [24, 24]  # TODO: this is just if you start in the top right-hand corner of the region
 
         # Reset env parameters
-        self.start_row = self.sight_distance
-        self.start_col = self.sight_distance
+        self.start_row = random.randint(12, 87)
+        self.start_col = random.randint(12, 87)
         self.row_position = self.start_row
         self.col_position = self.start_col
 
@@ -90,10 +91,18 @@ class Env:
         state = np.append(state, 1)
         state = np.append(state, 1)
         state = np.append(state, 1)
-        state = np.reshape(state, [1, 1, self.vision_size + 4])
+        #state = np.append(state, self.local_target[0])
+        #state = np.append(state, self.local_target[1])
+        state = np.append(state, self.local_target[0] - self.row_position)
+        state = np.append(state, self.local_target[1] - self.col_position)
+        state = np.reshape(state, [1, 1, self.vision_size + 6])
 
+        # Get new local map
+        self.next_local_map()
+        self.local_map = self.get_local_map()
         flattened_local_map = self.local_map.reshape(1, 1, 625)
-
+        #self.local_target = [24 + self.local_map_lower_row, 24 + self.local_map_lower_col]  # TODO: this is just if you start in the top right-hand corner of the region
+        #print(self.local_target)
         return state, flattened_local_map
 
     def step(self, action, time):
@@ -104,25 +113,25 @@ class Env:
 
         # Drone not allowed to move outside of the current local map (updates when target is reached)
         if action == 0:
-            if self.row_position < self.local_map_upper and self.row_position < (self.totalRows - self.sight_distance - 1):  # Forward one grid
+            if self.row_position < self.local_map_upper_row and self.row_position < (self.totalRows - self.sight_distance - 1):  # Forward one grid
                 next_row = self.row_position + 1
                 next_col = self.col_position
             else:
                 action = 4
         elif action == 1:
-            if self.col_position < self.local_map_upper and self.col_position < (self.totalCols - self.sight_distance - 1):  # right one grid
+            if self.col_position < self.local_map_upper_col and self.col_position < (self.totalCols - self.sight_distance - 1):  # right one grid
                 next_row = self.row_position
                 next_col = self.col_position + 1
             else:
                 action = 4
         elif action == 2:
-            if self.row_position > self.local_map_lower and self.row_position > self.sight_distance + 1:  # back one grid
+            if self.row_position > self.local_map_lower_row and self.row_position > self.sight_distance + 1:  # back one grid
                 next_row = self.row_position - 1
                 next_col = self.col_position
             else:
                 action = 4
         elif action == 3:
-            if self.col_position > self.local_map_lower and self.col_position > self.sight_distance + 1:  # left one grid
+            if self.col_position > self.local_map_lower_col and self.col_position > self.sight_distance + 1:  # left one grid
                 next_row = self.row_position
                 next_col = self.col_position - 1
             else:
@@ -137,7 +146,11 @@ class Env:
         state = np.append(state, self.visited[self.row_position, self.col_position + 1])
         state = np.append(state, self.visited[self.row_position - 1, self.col_position])
         state = np.append(state, self.visited[self.row_position, self.col_position + 1])
-        state = np.reshape(state, [1, 1, self.vision_size + 4])
+        #state = np.append(state, self.local_target[0])
+        #state = np.append(state, self.local_target[1])
+        state = np.append(state, self.local_target[0] - self.row_position)
+        state = np.append(state, self.local_target[1] - self.col_position)
+        state = np.reshape(state, [1, 1, self.vision_size + 6])
 
         reward = self.get_reward(image)
 
@@ -164,10 +177,11 @@ class Env:
         :param image: 2d array of mining probabilities within the drone's vision
         :return: reward value
         """
-        mining_prob = image[self.sight_distance, self.sight_distance]
+        mining_prob = 2*image[self.sight_distance, self.sight_distance]
 
-        reward = mining_prob*self.MINING_REWARD*self.visited[self.row_position, self.col_position] + \
-            self.local_target_reached()*self.TARGET_REWARD + self.target_reached(self.target_one)*self.TARGET_REWARD
+        reward = mining_prob*self.MINING_REWARD*self.visited[self.row_position, self.col_position]
+        reward += self.local_target_reached()*self.TARGET_REWARD
+                 #+ self.target_reached(self.target_one)*self.TARGET_REWARD
 
         if self.visited[self.row_position, self.col_position] == 0:
             reward += self.VISITED_PENALTY
@@ -179,9 +193,10 @@ class Env:
         TODO: should this incorporate visited?
         :return: local_map
         """
-        local_map = self.map[self.local_map_lower:self.local_map_upper+1, self.local_map_lower:self.local_map_upper+1]
-        row, col = self.get_local_target(self.target_one) # TODO: based on which target actually aiming for
-        local_map[row, col] = .5
+        #local_map = np.zeros([25, 25])
+        local_map = deepcopy(self.map[self.local_map_lower_row:self.local_map_upper_row+1, self.local_map_lower_col:self.local_map_upper_col+1])
+        #row, col = self.get_local_target(self.target_one) # TODO: based on which target actually aiming for
+        local_map[(self.local_target[0]-self.local_map_lower_row), (self.local_target[1]-self.local_map_lower_col)] = 1
         return local_map
 
     def next_local_map(self):
@@ -189,8 +204,12 @@ class Env:
         Sets boundaries on local map, placing the drone at the center of the new map
         :return: void
         """
-        self.local_map_lower = self.row_position - 12
-        self.local_map_upper = self.row_position + 12
+        self.local_map_lower_row = self.row_position - 12
+        self.local_map_upper_row = self.row_position + 12
+        self.local_map_lower_col = self.col_position - 12
+        self.local_map_upper_col = self.col_position + 12
+
+        self.get_local_target(self.target_one)
 
     def visited_position(self):
         """
@@ -207,7 +226,7 @@ class Env:
         """
         for i in range(self.sight_distance*2):
             for j in range(self.sight_distance*2):
-                self.map[self.row_position + i - self.sight_distance, self.col_position + j - self.sight_distance] = image[i, j]
+                self.map[self.row_position + i - self.sight_distance, self.col_position + j - self.sight_distance] = image[i, j]*2
 
     def target_reached(self, region):
         """
@@ -229,7 +248,7 @@ class Env:
         :return: boolean, true if drone is at the local target position
         """
         target = False
-        if self.row_position == self.local_target[0] + self.local_map_lower and self.col_position == self.local_target[1] + self.local_map_lower:
+        if self.row_position == self.local_target[0] and self.col_position == self.local_target[1]:
             target = True
         return target
 
@@ -242,19 +261,32 @@ class Env:
         row = 0
         col = 0
         if self.row_position == target[0]:
-            row = self.row_position
+            row = self.row_position - self.local_map_lower_row
         elif self.row_position > target[0]:
-            row = 0
+            if self.row_position - target[0] > 12:
+                row = 0
+            else:
+                row = target[0] - self.row_position + 12
         elif self.row_position < target[0]:
-            row = 24
+            if target[0] - self.row_position > 12:
+                row = 24
+            else:
+                row = target[0] - self.row_position+ 12
         if self.col_position == target[1]:
-            col = self.col_position
+            col = self.col_position - self.local_map_lower_col
         elif self.col_position > target[1]:
-            col = 0
+            if self.col_position - target[0] > 12:
+                col = 0
+            else:
+                col = target[0] - self.col_position + 12
         elif self.col_position < target[1]:
-            col = 24
-        self.local_target = [row+self.local_map_lower, col+self.local_map_lower]
-        return row, col
+            if target[0] - self.col_position > 12:
+                col = 24
+            else:
+                col = target[0] - self.col_position + 12
+        row = int(row+self.local_map_lower_row)
+        col = int(col+self.local_map_lower_col)
+        self.local_target = [row, col]
 
     def get_classified_drone_image(self):
         """
@@ -301,7 +333,8 @@ class Env:
 
     def calculate_covered(self, size):
         covered = 0
-        if size == 'local':
+        '''
+               if size == 'local':
             for i in range(25):
                 for j in range(25):
                     if self.visited[i][j] < 1:
@@ -316,6 +349,14 @@ class Env:
                         covered += 1
 
             percent_covered = covered / (self.totalCols * self.totalRows)
+
+        '''
+        for i in range(25):
+            for j in range(25):
+                if self.visited[i+self.local_map_lower_row][j+self.local_map_lower_col] < 1:
+                    covered += 1
+
+        percent_covered = covered / (25 * 25)
 
         return percent_covered
 
