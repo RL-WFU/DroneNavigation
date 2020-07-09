@@ -21,7 +21,7 @@ class DDRQNAgent:
         self.update_target_model()
 
     def _build_model(self):
-        first_input = Input(shape=(5, self.state_size+6))
+        first_input = Input(shape=(5, self.state_size))
         layer1 = Dense(64, activation='relu')(first_input)
         layer2 = Dense(10, activation='relu')(layer1)
 
@@ -67,8 +67,10 @@ class DDRQNAgent:
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
-    def load(self, name):
+    def load(self, name, name2):
         self.model.load_weights(name)
+        self.target_model.load_weights(name2)
 
-    def save(self, name):
+    def save(self, name, name2):
         self.model.save_weights(name)
+        self.target_model.save_weights(name2)

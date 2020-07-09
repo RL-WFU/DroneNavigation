@@ -29,17 +29,29 @@ class Env:
 
         # Define partitions
         self.region_one = [0, 0]
-        self.region_two = [0, self.totalCols/2]
-        self.region_three = [self.totalRows/2, 0]
-        self.region_four = [self.totalRows/2, self.totalCols/2]
+        self.region_two = [0, 60]
+        self.region_three = [0, 120]
+        self.region_four = [60, 0]
+        self.region_five = [60, 60]
+        self.region_six = [60, 120]
+        self.region_seven = [120, 0]
+        self.region_eight = [120, 60]
+        self.region_nine = [120, 120]
 
         # Define initial targets
-        self.target_one = [self.region_one[0] + self.totalRows/4, self.region_one[1] + self.totalCols/4]
-        self.target_two = [self.region_two[0] + self.totalRows/4, self.region_two[1] + self.totalCols/4]
-        self.target_three = [self.region_three[0] + self.totalRows/4, self.region_three[1] + self.totalCols/4]
-        self.target_four = [self.region_four[0] + self.totalRows/4, self.region_four[1] + self.totalCols/4]
+        self.targets = []
+        self.targets.append([self.region_one[0] + self.totalRows/6, self.region_one[1] + self.totalCols/6])
+        self.targets.append([self.region_two[0] + self.totalRows/6, self.region_two[1] + self.totalCols/6])
+        self.targets.append([self.region_three[0] + self.totalRows/6, self.region_three[1] + self.totalCols/6])
+        self.targets.append([self.region_four[0] + self.totalRows/6, self.region_four[1] + self.totalCols/6])
+        self.targets.append([self.region_five[0] + self.totalRows/6, self.region_five[1] + self.totalCols/6])
+        self.targets.append([self.region_six[0] + self.totalRows/6, self.region_six[1] + self.totalCols/6])
+        self.targets.append([self.region_seven[0] + self.totalRows/6, self.region_seven[1] + self.totalCols/6])
+        self.targets.append([self.region_eight[0] + self.totalRows/6, self.region_eight[1] + self.totalCols/6])
+        self.targets.append([self.region_nine[0] + self.totalRows / 6, self.region_nine[1] + self.totalCols / 6])
         self.local_target = [24, 24]  # TODO: this is just if you start in the top right-hand corner of the region
-        self.current_target = 1
+        self.current_target_index = 0
+        self.current_target = self.targets[self.current_target_index]
 
         # Set env parameters
         self.num_actions = 5
@@ -55,6 +67,7 @@ class Env:
         self.TARGET_REWARD = 700
         self.END_REWARD = 2000
         self.VISITED_PENALTY = -5
+        self.HOVER_PENALTY = -10
         self.INVALID_PENALTY = -20  # TODO: do we need this or should we hard code to stay in bounds
 
     def reset_environment(self):
@@ -68,22 +81,24 @@ class Env:
         self.map = np.zeros([self.totalRows, self.totalCols])
         self.visited = np.ones([self.totalRows, self.totalCols])
 
-        # Reset partitions
-        self.region_one = [0, 0]
-        self.region_two = [0, self.totalCols / 2]
-        self.region_three = [self.totalRows / 2, 0]
-        self.region_four = [self.totalRows / 2, self.totalCols / 2]
-
         # Reset initial targets
-        self.target_one = [self.region_one[0] + self.totalRows / 4, self.region_one[1] + self.totalCols / 4]
-        self.target_two = [self.region_two[0] + self.totalRows / 4, self.region_two[1] + self.totalCols / 4]
-        self.target_three = [self.region_three[0] + self.totalRows / 4, self.region_three[1] + self.totalCols / 4]
-        self.target_four = [self.region_four[0] + self.totalRows / 4, self.region_four[1] + self.totalCols / 4]
-        self.current_target = 2
+        self.targets = []
+        self.targets.append([self.region_one[0] + self.totalRows/6, self.region_one[1] + self.totalCols/6])
+        self.targets.append([self.region_two[0] + self.totalRows/6, self.region_two[1] + self.totalCols/6])
+        self.targets.append([self.region_three[0] + self.totalRows/6, self.region_three[1] + self.totalCols/6])
+        self.targets.append([self.region_six[0] + self.totalRows/6, self.region_six[1] + self.totalCols/6])
+        self.targets.append([self.region_five[0] + self.totalRows / 6, self.region_five[1] + self.totalCols / 6])
+        self.targets.append([self.region_four[0] + self.totalRows/6, self.region_four[1] + self.totalCols/6])
+        self.targets.append([self.region_seven[0] + self.totalRows/6, self.region_seven[1] + self.totalCols/6])
+        self.targets.append([self.region_eight[0] + self.totalRows/6, self.region_eight[1] + self.totalCols/6])
+        self.targets.append([self.region_nine[0] + self.totalRows / 6, self.region_nine[1] + self.totalCols / 6])
+        self.local_target = [24, 24]  # TODO: this is just if you start in the top right-hand corner of the region
+        self.current_target_index = 0
+        self.current_target = self.targets[self.current_target_index]
 
         # Reset env parameters
-        self.start_row = random.randint(12, 87)
-        self.start_col = random.randint(12, 49)
+        self.start_row = random.randint(12, 42)
+        self.start_col = random.randint(12, 42)
         self.row_position = self.start_row
         self.col_position = self.start_col
 
@@ -94,8 +109,6 @@ class Env:
         state = np.append(state, 1)
         state = np.append(state, 1)
         state = np.append(state, 1)
-        #state = np.append(state, self.local_target[0])
-        #state = np.append(state, self.local_target[1])
         state = np.append(state, self.local_target[0] - self.row_position)
         state = np.append(state, self.local_target[1] - self.col_position)
         state = np.reshape(state, [1, 1, self.vision_size + 6])
@@ -104,8 +117,7 @@ class Env:
         self.next_local_map()
         self.local_map = self.get_local_map()
         flattened_local_map = self.local_map.reshape(1, 1, 625)
-        #self.local_target = [24 + self.local_map_lower_row, 24 + self.local_map_lower_col]  # TODO: this is just if you start in the top right-hand corner of the region
-        #print(self.local_target)
+
         return state, flattened_local_map
 
     def step(self, action, time):
@@ -115,13 +127,15 @@ class Env:
 
         # Drone not allowed to move outside of the current local map (updates when target is reached)
         if action == 0:
-            if self.row_position < self.local_map_upper_row and self.row_position < (self.totalRows - self.sight_distance - 1):  # Forward one grid
+            if self.row_position < self.local_map_upper_row and self.row_position < (
+                    self.totalRows - self.sight_distance - 1):  # Forward one grid
                 next_row = self.row_position + 1
                 next_col = self.col_position
             else:
                 action = 5
         elif action == 1:
-            if self.col_position < self.local_map_upper_col and self.col_position < (self.totalCols - self.sight_distance - 1):  # right one grid
+            if self.col_position < self.local_map_upper_col and self.col_position < (
+                    self.totalCols - self.sight_distance - 1):  # right one grid
                 next_row = self.row_position
                 next_col = self.col_position + 1
             else:
@@ -139,24 +153,27 @@ class Env:
             else:
                 action = 5
         if action == 5:  # This hardcodes the drone to move towards the target if it tries to take an invalid action
-            print('guided')
-            if self.row_position < self.local_map_upper_row and self.row_position < (self.totalRows - self.sight_distance - 1) and self.row_position < self.local_target[0]:
+            if self.row_position < self.local_map_upper_row and self.row_position < (
+                    self.totalRows - self.sight_distance - 1) and self.row_position < self.local_target[0]:
                 next_row = self.row_position + 1
                 next_col = self.col_position
-            elif self.col_position < self.local_map_upper_col and self.col_position < (self.totalCols - self.sight_distance - 1) and self.col_position < self.local_target[0]:
+            elif self.col_position < self.local_map_upper_col and self.col_position < (
+                    self.totalCols - self.sight_distance - 1) and self.col_position < self.local_target[0]:
                 next_row = self.row_position
                 next_col = self.col_position + 1
-            elif self.row_position > self.local_map_lower_row and self.row_position > self.sight_distance + 1 and self.row_position > self.local_target[0]:
+            elif self.row_position > self.local_map_lower_row and self.row_position > self.sight_distance + 1 and self.row_position > \
+                    self.local_target[0]:
                 next_row = self.row_position - 1
                 next_col = self.col_position
-            elif self.col_position > self.local_map_lower_col and self.col_position > self.sight_distance + 1 and self.col_position > self.local_target[1]:
+            elif self.col_position > self.local_map_lower_col and self.col_position > self.sight_distance + 1 and self.col_position > \
+                    self.local_target[1]:
                 next_row = self.row_position
                 next_col = self.col_position - 1
 
         self.row_position = next_row
         self.col_position = next_col
-        #print(self.row_position, self.col_position)
-        #print(self.local_target)
+        # print(self.row_position, self.col_position)
+        # print(self.local_target)
 
         image = self.get_classified_drone_image()
 
@@ -167,7 +184,6 @@ class Env:
 
         # TODO: can instead set the done condition to be target reached
         if time > self.config.max_steps or self.target_reached():
-
             '''
             if self.current_target == 2:
                 self.done = True
@@ -190,8 +206,6 @@ class Env:
         state = np.append(state, self.visited[self.row_position, self.col_position + 1])
         state = np.append(state, self.visited[self.row_position - 1, self.col_position])
         state = np.append(state, self.visited[self.row_position, self.col_position + 1])
-        # state = np.append(state, self.local_target[0])
-        # state = np.append(state, self.local_target[1])
         state = np.append(state, self.local_target[0] - self.row_position)
         state = np.append(state, self.local_target[1] - self.col_position)
         state = np.reshape(state, [1, 1, self.vision_size + 6])
@@ -201,7 +215,6 @@ class Env:
     def get_reward(self, image, action):
         """
         Calculates reward based on target, mining seen, and whether the current state has already been visited
-        TODO: add reward for if the drone chooses an "invalid" action
         :param image: 2d array of mining probabilities within the drone's vision
         :return: reward value
         """
@@ -210,7 +223,7 @@ class Env:
         reward = mining_prob*self.MINING_REWARD*self.visited[self.row_position, self.col_position]
         reward += self.local_target_reached()*self.TARGET_REWARD + self.target_reached()*self.END_REWARD
 
-        if action == 4:
+        if action == 4 or action == 5:
             reward += self.HOVER_PENALTY
 
         if self.visited[self.row_position, self.col_position] == 0:
@@ -240,7 +253,7 @@ class Env:
         self.local_map_upper_col = self.col_position + 12
 
         self.get_local_target()
-        print('next local map')
+        # print('next local map')
 
     def visited_position(self):
         """
@@ -263,16 +276,10 @@ class Env:
         """
         :return: boolean, true if drone is at the target position
         """
-        region = self.current_target
         target = False
-        if self.row_position == self.target_one[0] and self.col_position == self.target_one[1] and region == 1:
+        if self.row_position == self.current_target[0] and self.col_position == self.current_target[1]:
             target = True
-        elif self.row_position == self.target_two[0] and self.col_position == self.target_two[1] and region == 2:
-            target = True
-        elif self.row_position == self.target_three[0] and self.col_position == self.target_three[1] and region == 3:
-            target = True
-        elif self.row_position == self.target_four[0] and self.col_position == self.target_four[1] and region == 4:
-            target = True
+
         return target
 
     def local_target_reached(self):
@@ -284,20 +291,21 @@ class Env:
             target = True
         return target
 
+    def get_next_target(self):
+        # TODO: implement function (network??) to pick the next target
+        self.current_target_index += 1
+        self.current_target = self.targets[self.current_target_index]
+        self.next_local_map()
+        self.local_map = self.get_local_map()
+        return self.current_target
+
     def get_local_target(self):
         """
         Sets the local map target based on where the drone is located in relation to the main target
         :param target: current target position (x, y)
         :return: row and col of the local map target
         """
-        if self.current_target == 2:
-            target = self.target_two
-        elif self.current_target == 3:
-            target = self.target_three
-        elif self.current_target == 4:
-            target = self.target_four
-        else:
-            target = self.target_one
+        target = self.current_target
         row = 0
         col = 0
         #print('target:', target)

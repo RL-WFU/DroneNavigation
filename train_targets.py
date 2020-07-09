@@ -1,7 +1,7 @@
 from configurationSimple import ConfigSimple as config
 from ddrqn import *
 import matplotlib.pyplot as plt
-from env import Env as Drone
+from env2 import Env as Drone
 import collections
 
 def get_last_t_states(t, episode):
@@ -44,7 +44,7 @@ def get_last_t_minus_one_states(t, episode):
 env = Drone(config)
 action_size = env.num_actions
 agent = DDRQNAgent(env.vision_size, action_size)
-agent.load('model_weights_mid.h5')
+agent.load('model_weights.h5', 'target_model_weights.h5')
 
 done = False
 batch_size = 32
@@ -65,22 +65,25 @@ for e in range(config.num_episodes):
     episode_rewards.append(0)
     state, local_map = env.reset_environment()
     t = 0
+
     for time in range(config.max_steps):
         states = np.zeros([1, 5, 29])
         local_maps = np.zeros([1, 5, 625])
-        if t < 5:
+        if time < 5:
             action = np.random.randint(0, 5)
         else:
             states, local_maps = get_last_t_states(5, episode)
             action = agent.act(states, local_maps)
 
-        next_state, next_local_map, reward, done = env.step(action, time, 1)
+        next_state, next_local_map, reward, done = env.step(action, time)
         total_reward += reward
+
+        env.save_local_map('ddrqn_local_map3.jpg')
+        env.plot_path('ddrqn_drone_path3.jpg')
 
         episode.append(Transition(
             state=state, local_map=local_map, action=action, reward=reward, next_state=next_state, next_local_map=next_local_map, done=done))
 
-        #agent.memorize(state, local_map, action, reward, next_state, next_local_map, done)
         state = next_state
         local_map = next_local_map
         if time > 5:
@@ -98,7 +101,7 @@ for e in range(config.num_episodes):
 
     episode_steps.append(t)
     episode_rewards[e] = total_reward
-    covered = env.calculate_covered('local')
+    covered = env.calculate_covered('global')
     episode_covered.append(covered)
     average_c += covered
     average_r.append(total_reward)
@@ -115,7 +118,7 @@ for e in range(config.num_episodes):
     plt.plot(average_rewards)
     plt.ylabel('Averaged Episode reward')
     plt.xlabel('Episode')
-    plt.savefig('ddrqn_average_reward2.png')
+    plt.savefig('ddrqn_average_reward3.png')
     plt.clf()
 
     if e % average_over == 0:
@@ -126,57 +129,54 @@ for e in range(config.num_episodes):
         plt.plot(episode_rewards)
         plt.ylabel('Episode reward')
         plt.xlabel('Episode')
-        plt.savefig('ddrqn_reward2.png')
+        plt.savefig('ddrqn_reward3.png')
         plt.clf()
 
         plt.ylabel('Percent Covered')
         plt.xlabel('Episode')
-        plt.savefig('ddrqn_coverage2.png')
+        plt.savefig('ddrqn_coverage3.png')
         plt.clf()
 
         plt.plot(episode_steps)
         plt.ylabel('Steps Taken')
         plt.xlabel('Episode')
-        plt.savefig('ddrqn_steps2.png')
+        plt.savefig('ddrqn_steps3.png')
         plt.clf()
 
     if e == 125:
-        agent.save('2_full_model_weights_mid.h5')
+        agent.save('2_model_weights_mid.h5', '2_target_model_weights_mid.h5')
 
-    if e == 500:
-        agent.save('2_full_model_weights_mid2.h5')
 
-    env.plot_path('ddrqn_drone_path2.jpg')
-    env.save_map('ddrqn_map2.jpg')
-    env.save_local_map('ddrqn_local_map2.jpg')
+    env.save_map('ddrqn_map3.jpg')
+    env.save_local_map('ddrqn_local_map3.jpg')
 
     print("episode: {}/{}, reward: {}, percent covered: {}, start position: {},{}, number of steps: {}"
             .format(e, config.num_episodes, total_reward, covered, env.start_row,
                     env.start_col, t))
 
-agent.save('full_model_weights.h5')
+agent.save('2_model_weights.h5', '2_target_model_weights.h5')
 
 plt.plot(average_rewards)
 plt.ylabel('Averaged Episode reward')
 plt.xlabel('Episode')
-plt.savefig('ddrqn_average_reward2.png')
+plt.savefig('ddrqn_average_reward3.png')
 plt.clf()
 
 plt.plot(average_covered)
 plt.ylabel('Average Percent Covered')
 plt.xlabel('Episode')
-plt.savefig('ddrqn_average_coverage2.png')
+plt.savefig('ddrqn_average_coverage3.png')
 plt.clf()
 
 plt.plot(episode_rewards)
 plt.ylabel('Episode reward')
 plt.xlabel('Episode')
-plt.savefig('ddrqn_reward2.png')
+plt.savefig('ddrqn_reward3.png')
 plt.clf()
 
 plt.ylabel('Percent Covered')
 plt.xlabel('Episode')
-plt.savefig('ddrqn_coverage2.png')
+plt.savefig('ddrqn_coverage3.png')
 plt.clf()
 
 
