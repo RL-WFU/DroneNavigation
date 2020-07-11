@@ -18,10 +18,9 @@ class SelectTarget(Env):
         self.MINING_REWARD = 100
         self.DISTANCE_PENALTY = -2
         self.COVERED_PENALTY = -1200
-        self.HOVER_PENALTY = -75
+        self.HOVER_PENALTY = -100
 
     def set_target(self, next_target):
-        self.done = False
         self.current_target = self.targets[next_target]
 
         self.update_regions()
@@ -30,12 +29,9 @@ class SelectTarget(Env):
 
         self.__class__.current_target_index = next_target
 
-        if self.calculate_covered('global') > 0.6:
-            self.done = True
+        state = self.region_values.reshape(1, 27)
 
-        state = self.regions.reshape(1, 27)
-
-        return self.current_target, state, reward, self.done
+        return next_target, state, reward
 
     def get_reward(self, next_target):
         hover = False

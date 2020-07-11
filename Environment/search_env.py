@@ -15,11 +15,11 @@ class Search(Env):
         self.num_actions = 5
 
         # Set reward values
-        self.MINING_REWARD = 50
+        self.MINING_REWARD = 100
         self.TARGET_REWARD = 700
-        self.END_REWARD = 2000
-        self.VISITED_PENALTY = -5
-        self.HOVER_PENALTY = -10
+        self.END_REWARD = 100
+        self.VISITED_PENALTY = -25
+        self.HOVER_PENALTY = -25
 
     def reset_search(self, row, col):
         self.__class__.row_position = row
@@ -245,3 +245,81 @@ class Search(Env):
         """
         flat_state = state.reshape(1, self.vision_size)
         return flat_state
+
+    def step_local(self, action, time):
+        self.done = False
+        next_row = self.__class__.row_position
+        next_col = self.__class__.col_position
+
+        # Drone not allowed to move outside of the current local map
+        if action == 0:
+            if self.__class__.row_position < self.local_map_upper_row and self.__class__.row_position < (
+                    self.totalRows - self.sight_distance - 1):  # Forward one grid
+                next_row = self.__class__.row_position + 1
+                next_col = self.__class__.col_position
+            else:
+                action = 5
+        elif action == 1:
+            if self.__class__.col_position < self.local_map_upper_col and self.__class__.col_position < (
+                    self.totalCols - self.sight_distance - 1):  # right one grid
+                next_row = self.__class__.row_position
+                next_col = self.__class__.col_position + 1
+            else:
+                action = 5
+        elif action == 2:
+            if self.__class__.row_position > self.local_map_lower_row and self.__class__.row_position > self.sight_distance + 1:  # back one grid
+                next_row = self.__class__.row_position - 1
+                next_col = self.__class__.col_position
+            else:
+                action = 5
+        elif action == 3:
+            if self.__class__.col_position > self.local_map_lower_col and self.__class__.col_position > self.sight_distance + 1:  # left one grid
+                next_row = self.__class__.row_position
+                next_col = self.__class__.col_position - 1
+            else:
+                action = 5
+        if action == 5 or action == 4:  # This hardcodes the drone to move towards the target if it tries to take an invalid action
+            if self.__class__.row_position < self.local_map_upper_row and self.__class__.row_position < (
+                    self.totalRows - self.sight_distance - 1) and self.__class__.row_position < self.local_target[0]:
+                next_row = self.__class__.row_position + 1
+                next_col = self.__class__.col_position
+            elif self.__class__.col_position < self.local_map_upper_col and self.__class__.col_position < (
+                    self.totalCols - self.sight_distance - 1) and self.__class__.col_position < self.local_target[1]:
+                next_row = self.__class__.row_position
+                next_col = self.__class__.col_position + 1
+            elif self.__class__.row_position > self.local_map_lower_row and self.__class__.row_position > \
+                    self.sight_distance + 1 and self.__class__.row_position > self.local_target[0]:
+                next_row = self.__class__.row_position - 1
+                next_col = self.__class__.col_position
+            elif self.__class__.col_position > self.local_map_lower_col and self.__class__.col_position > \
+                    self.sight_distance + 1 and self.__class__.col_position > self.local_target[1]:
+                next_row = self.__class__.row_position
+                next_col = self.__class__.col_position - 1
+
+        self.__class__.row_position = next_row
+        self.__class__.col_position = next_col
+        # print(self.row_position, self.col_position)
+        # print(self.local_target)
+
+        image = self.get_classified_drone_image()
+
+        reward = self.get_reward(image, action)
+
+        self.visited_position()
+        self.update_map(image)
+
+        if time > self.config.max_steps_search or self.local_target_reached():
+            self.done = True
+
+        flattened_local_map = self.local_map.reshape(1, 1, 625)
+
+        state = self.flatten_state(image)
+        state = np.append(state, self.visited[self.__class__.row_position + 1, self.__class__.col_position])
+        state = np.append(state, self.visited[self.__class__.row_position, self.__class__.col_position + 1])
+        state = np.append(state, self.visited[self.__class__.row_position - 1, self.__class__.col_position])
+        state = np.append(state, self.visited[self.__class__.row_position, self.__class__.col_position + 1])
+        state = np.append(state, self.local_target[0] - self.__class__.row_position)
+        state = np.append(state, self.local_target[1] - self.__class__.col_position)
+        state = np.reshape(state, [1, 1, self.vision_size + 6])
+
+        return state, flattened_local_map, reward, self.done

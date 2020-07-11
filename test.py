@@ -48,9 +48,9 @@ trace = Trace()
 target = SelectTarget()
 action_size = search.num_actions
 searching_agent = DDRQNAgent(search.vision_size+6, action_size)
-searching_agent.load('full_searching_model_weights_mid.h5', 'full_searching_target_model_weights_mid.h5')
+searching_agent.load('full_searching_model_weights_mid1.h5', 'full_searching_target_model_weights_mid1.h5')
 tracing_agent = DDRQNAgent(trace.vision_size + 4, action_size)
-tracing_agent.load('tracing_model_weights.h5', 'tracing_target_model_weights.h5')
+tracing_agent.load('full_tracing_model_weights.h5', 'full_tracing_target_model_weights.h5')
 selection_agent = DDRQNAgent(config.num_targets*3, config.num_targets)
 
 done = False
@@ -64,6 +64,7 @@ average_over = 1
 average_rewards = []
 average_r = deque(maxlen=average_over)
 average_c = 0
+region_values = []
 
 for e in range(config.num_episodes):
     episode = []
@@ -101,6 +102,9 @@ for e in range(config.num_episodes):
 
             state = next_state
             local_map = next_local_map
+            if time > 5:
+                next_states, next_local_maps = get_last_t_states(5, episode, search.vision_size+6)
+                searching_agent.memorize(states, local_maps, action, reward, next_states, next_local_maps, done)
 
             if done:
                 break
@@ -119,10 +123,7 @@ for e in range(config.num_episodes):
 
         state, local_map = trace.reset_tracing(search.row_position, search.col_position)
         coverage = trace.calculate_covered('mining')
-        time = 0
-
-        while True:
-        #for time in range(config.max_steps_trace):
+        for time in range(config.max_steps_trace):
             states = np.zeros([1, 5, 29])
             local_maps = np.zeros([1, 5, 625])
             if time < 5:
@@ -139,24 +140,22 @@ for e in range(config.num_episodes):
 
             state = next_state
             local_map = next_local_map
+            if time > 5:
+                next_states, next_local_maps = get_last_t_states(5, episode, trace.vision_size+4)
+                tracing_agent.memorize(states, local_maps, action, reward, next_states, next_local_maps, done)
 
             if done:
                 break
 
             if (time + 1) % 100 == 0:
                 new_coverage = trace.calculate_covered('mining')
-                #change_target = target.select_next_target(trace.row_position, trace.col_position)
-                #if change_target != search.current_target_index:
                 if new_coverage - coverage < .005:
                     next_target = target.select_next_target(trace.row_position, trace.col_position)
                     if next_target != trace.current_target_index:
                         break
                 coverage = new_coverage
 
-
             t = time
-            time += 1
-            trace.plot_path('ddrqn_drone_path.jpg')
 
         steps += t
 
@@ -168,14 +167,13 @@ for e in range(config.num_episodes):
         search.plot_path('ddrqn_drone_path.jpg')
         search.save_map('ddrqn_map.jpg')
 
-
         # next_target = target.simple_select()
         next_target = target.select_next_target(trace.row_position, trace.col_position)
+        region_values.append(target.region_values)
         search.update_target(next_target)
         trace.update_target(next_target)
         target.update_target(next_target)
         print("Next target:", next_target)
-
 
     episode_steps.append(steps)
     episode_rewards[e] = total_reward
@@ -237,8 +235,8 @@ for e in range(config.num_episodes):
         plt.savefig('mining_coverage2.png')
         plt.clf()
 
-    print("episode: {}/{}, reward: {}, percent total covered: {}, percent minng covered: {}, start position: {},{}, number of steps: {}"
-            .format(e, config.num_episodes, total_reward, covered, trace.calculate_covered('mining'), search.start_row,
+    print("episode: {}/{}, reward: {}, percent covered: {}, mining covered: {}, start position: {},{}, number of steps: {}"
+            .format(e, config.num_episodes, total_reward, covered, target.calculate_covered('mining'), search.start_row,
                     search.start_col, steps))
 
 plt.plot(average_rewards)

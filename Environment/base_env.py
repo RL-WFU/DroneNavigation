@@ -67,8 +67,8 @@ class Env:
         self.__class__.visited = np.ones([self.totalRows, self.totalCols])
 
         # Reset env parameters
-        self.start_row = random.randint(12, 42)
-        self.start_col = random.randint(12, 42)
+        self.start_row = random.randint(12, 47)
+        self.start_col = random.randint(12, 47)
         self.__class__.current_target_index = 0
         self.__class__.row_position = self.start_row
         self.__class__.col_position = self.start_col

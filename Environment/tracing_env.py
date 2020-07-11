@@ -13,7 +13,7 @@ class Trace(Env):
         # Set reward values
         self.MINING_REWARD = 200
         self.COVERAGE_REWARD = 200
-        self.VISITED_PENALTY = -5
+        self.VISITED_PENALTY = -15
         self.HOVER_PENALTY = -10
 
     def reset_tracing(self, row, col):
@@ -83,7 +83,7 @@ class Trace(Env):
 
         image = self.get_classified_drone_image()
 
-        if time > self.config.max_steps_trace or self.calculate_covered('region') > .6:
+        if time > self.config.max_steps_trace:
             self.done = True
 
         reward = self.get_reward(image, action)
