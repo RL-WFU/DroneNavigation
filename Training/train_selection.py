@@ -201,7 +201,7 @@ def train_selection(target_cost=False, target_weights=None):
                 r = 0
                 for i in range(e):
                     r += target_selection_average_r[i]
-                    r /= (e + 1)
+                r /= (e + 1)
                 target_selection_average_rewards.append(r)
             else:
                 target_selection_average_rewards.append(sum(target_selection_average_r) / average_over)

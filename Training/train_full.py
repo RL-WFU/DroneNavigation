@@ -57,7 +57,6 @@ def train_full_model(target_cost=False, search_weights=None, trace_weights=None,
         target_selection_rewards = []
         target_selection_average_rewards = []
         target_selection_average_r = deque(maxlen=average_over)
-        iteration = 0
 
     for e in range(config.num_episodes):
         mining_coverage = []
@@ -72,6 +71,7 @@ def train_full_model(target_cost=False, search_weights=None, trace_weights=None,
                                                                "next_local_map", "done"])
             target_selection_reward = 0
             target_selection_state = np.zeros([1, 27])
+            iteration = 0
 
         while target.calculate_covered('mining') < .7:
             mining = target.calculate_covered('mining')
@@ -207,7 +207,7 @@ def train_full_model(target_cost=False, search_weights=None, trace_weights=None,
                 r = 0
                 for i in range(e):
                     r += target_selection_average_r[i]
-                    r /= (trace_episode_num + 1)
+                r /= (e + 1)
                 target_selection_average_rewards.append(r)
             else:
                 target_selection_average_rewards.append(sum(target_selection_average_r) / average_over)

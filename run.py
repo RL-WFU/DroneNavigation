@@ -14,7 +14,7 @@ if __name__ == '__main__':
     parser.add_argument('--search_weights', default=None, type=str, help='weights to load for search model')
     parser.add_argument('--trace_weights', default=None, type=str, help='weights to load for trace model')
     parser.add_argument('--target_selection_weights', default=None, type=str, help='weights to load for selection model')
-    parser.add_argument('--training', default=True, type=bool, help='training or testing model')
+    parser.add_argument('--training', default=False, type=bool, help='training or testing model')
     args = parser.parse_args()
 
     if args.training:
@@ -34,4 +34,4 @@ if __name__ == '__main__':
     else:
         print('Testing...')
         test_full_model(not args.target_selection, 'Training_results/Weights/search_full_model_weights_B_1',
-                        'Training_results/Weights/trace_full_model_weights_B_1', args.target_selection_weights)
+                        'Training_results/Weights/trace_full_model_weights_B_1', 'Training_results/Weights/target_selection_full_model_weights_d_375')
