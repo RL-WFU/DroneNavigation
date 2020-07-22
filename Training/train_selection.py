@@ -1,8 +1,10 @@
 from ddrqn import *
+from ddqn_modified import *
 from Environment.search_env import *
 from Environment.tracing_env import *
 from Environment.target_selector_env import *
-from Training.training_helper import *
+from Training.training_helper import save_weights
+from Testing.testing_helper import *
 
 """
 Trains the searching network to navigate to target
@@ -14,25 +16,23 @@ Saves plotting to Training_results/Search and Training_results/Trace and Trainin
 """
 
 
-def train_full_model(target_cost=False, search_weights=None, trace_weights=None, target_weights=None):
+def train_selection(target_cost=False, target_weights=None):
     # Initialize environment and ddrqn agents
     search = Search()
     trace = Trace()
     target = SelectTarget()
     action_size = search.num_actions
-    searching_agent = DDRQNAgent(search.vision_size+6, action_size)
-    if search_weights is not None:
-        searching_agent.load(search_weights + '.h5', search_weights + '_target.h5')
+    searching_agent = keras.models.load_model('Training_results/Weights/search_full_model_B_3.h5')
 
-    tracing_agent = DDRQNAgent(trace.vision_size + 5, action_size)
-    if trace_weights is not None:
-        tracing_agent.load(trace_weights + '.h5', trace_weights + '_target.h5')
-        # tracing_agent.load('full_tracing_model_weights.h5', 'full_tracing_target_model_weights.h5')
+    tracing_agent = keras.models.load_model('Training_results/Weights/trace_full_model_B_3.h5')
 
     if not target_cost:
-        selection_agent = DDRQNAgent(config.num_targets * 3, config.num_targets)
-        if target_weights is not None:
-            selection_agent.load(target_weights + '.h5', target_weights + '_target.h5')
+        selection_agent = DDQNAgent(config.num_targets * 3, config.num_targets)
+        temp_model = keras.models.load_model('Training_results/Weights/target_selection_full_model_weights_C_390.h5')
+        temp_model.save_weights('temp.h5')
+        selection_agent.load('temp.h5', 'temp.h5')
+        #if target_weights is not None:
+            #selection_agent.load(target_weights + '.h5', target_weights + '_target.h5')
 
     done = False
     batch_size = 48
@@ -57,7 +57,6 @@ def train_full_model(target_cost=False, search_weights=None, trace_weights=None,
         target_selection_rewards = []
         target_selection_average_rewards = []
         target_selection_average_r = deque(maxlen=average_over)
-        iteration = 0
 
     for e in range(config.num_episodes):
         mining_coverage = []
@@ -68,19 +67,20 @@ def train_full_model(target_cost=False, search_weights=None, trace_weights=None,
 
         if not target_cost:
             episode = []
+            iteration = 0
             Transition = collections.namedtuple("Transition", ["state", "local_map", "action", "reward", "next_state",
                                                                "next_local_map", "done"])
             target_selection_reward = 0
             target_selection_state = np.zeros([1, 27])
 
-        while target.calculate_covered('mining') < .7:
+        while iteration < 50:
             mining = target.calculate_covered('mining')
             print('Mining Coverage:', mining)
             mining_coverage.append(mining)
             print('Total Steps:', t)
 
             # Complete one searching episode
-            reward, steps, row_position, col_position = search_episode(search, searching_agent, batch_size,
+            reward, steps, row_position, col_position = search_episode(search, searching_agent,
                                                                        trace.row_position, trace.col_position)
             search_rewards.append(reward)
             search_covered.append(search.calculate_covered('mining'))
@@ -106,9 +106,6 @@ def train_full_model(target_cost=False, search_weights=None, trace_weights=None,
                   .format(search_episode_num+1 % (e+1), e+1, reward, search_covered[search_episode_num],
                           trace.row_position, trace.col_position, steps))
 
-            if search_episode_num > 20 and search_episode_num % 20 == 0:
-                searching_agent.decay_learning_rate()
-
             search_episode_num += 1
             t += steps
 
@@ -119,7 +116,7 @@ def train_full_model(target_cost=False, search_weights=None, trace_weights=None,
             target.transfer_map(search.map)
 
             # Complete one tracing episode
-            reward, steps, row_position, col_position = trace_episode(trace, tracing_agent, batch_size,
+            reward, steps, row_position, col_position = trace_episode(trace, tracing_agent,
                                                                       search.row_position, search.col_position, target)
             trace_rewards.append(reward)
             trace_covered.append(trace.calculate_covered('mining'))
@@ -145,9 +142,6 @@ def train_full_model(target_cost=False, search_weights=None, trace_weights=None,
                   .format(trace_episode_num+1 % (e+1), e+1, reward, trace_covered[trace_episode_num],
                           search.row_position, search.col_position, steps))
 
-            if search_episode_num > 20 and search_episode_num % 20 == 0:
-                tracing_agent.decay_learning_rate()
-
             trace_episode_num += 1
             t += steps
 
@@ -169,7 +163,7 @@ def train_full_model(target_cost=False, search_weights=None, trace_weights=None,
                     states, local_maps = get_last_t_states(5, episode, config.num_targets*3)
                     action = selection_agent.act(states, local_maps)
 
-                next_target, next_state, reward = target.set_target(action)
+                next_target, next_state, reward = target.set_target(action, trace.row_position, trace.col_position)
                 target_selection_reward += reward
 
                 episode.append(Transition(
@@ -207,22 +201,20 @@ def train_full_model(target_cost=False, search_weights=None, trace_weights=None,
                 r = 0
                 for i in range(e):
                     r += target_selection_average_r[i]
-                    r /= (trace_episode_num + 1)
+                    r /= (e + 1)
                 target_selection_average_rewards.append(r)
             else:
                 target_selection_average_rewards.append(sum(target_selection_average_r) / average_over)
 
             if e % average_over == 0:
-                save_plots(e + 1, target, 'Target', target_selection_average_rewards, target_selection_reward)
+                save_plots(e + 1, target, 'Target', target_selection_average_rewards, target_selection_rewards)
 
             print("trace episode: {}/{}, reward: {}".format(e+1, config.num_episodes, sum(target_selection_rewards)))
 
         print('***********')
-        print("EPISODE {} COMPLETE: Steps -- {}, Mining Coverage -- {}, Total Coverage: {}"
-              .format(e+1, t, target.calculate_covered('mining'), target.calculate_covered('map')))
+        print("EPISODE {} COMPLETE: Steps -- {}, Mining Coverage -- {}, Total Coverage: {}, Target Selection Reward -- {}"
+              .format(e+1, t, target.calculate_covered('mining'), target.calculate_covered('map'), target_selection_reward))
         print('***********')
 
-        save_model(e + 1, searching_agent, 'search_full_model_B')
-        save_model(e + 1, tracing_agent, 'trace_full_model_B')
         if not target_cost:
-            save_model(e + 1, selection_agent, 'target_selection_full_model_weights_B')
+            save_weights(e + 1, selection_agent, 'target_selection_full_model_weights_D')

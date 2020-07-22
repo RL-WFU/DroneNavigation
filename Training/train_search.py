@@ -42,6 +42,9 @@ def train_search_agent(weights=None):
 
         average_r.append(reward)
 
+        if episode > 40 and episode % 20 == 0:
+            searching_agent.decay_learning_rate()
+
         if episode < average_over:
             r = 0
             for i in range(episode):
@@ -58,4 +61,5 @@ def train_search_agent(weights=None):
               .format(episode+1, config.num_episodes, reward, episode_covered[episode], search.start_row,
                       search.start_col, steps))
 
-    save_weights(1, search, 'simple_search_model_weights')
+    save_plots(config.num_episodes, search, 'Search', average_rewards, episode_rewards, mining_coverage=episode_covered)
+    save_weights(1, searching_agent, 'search_model_weights')

@@ -1,21 +1,25 @@
 import random
 import numpy as np
 from collections import deque
+from tensorflow import keras
 from keras.models import Sequential, Model
 from keras.layers import Dense, concatenate, Input, LSTM
 from keras.optimizers import Adam
 
 
 class DDRQNAgent:
-    def __init__(self, state_size, action_size):
+    def __init__(self, state_size, action_size, training=True):
         self.state_size = state_size
         self.action_size = action_size
         self.memory = deque(maxlen=2000)
         self.gamma = 0.95  # discount rate
         self.epsilon = 1.0  # exploration rate
         self.epsilon_min = 0.01
+        if not training:
+            self.epsilon = self.epsilon_min
         self.epsilon_decay = 0.99
         self.learning_rate = 0.001
+        self.learning_rate_decay = 0.8
         self.model = self._build_model()
         self.target_model = self._build_model()
         self.update_target_model()
@@ -66,6 +70,9 @@ class DDRQNAgent:
             self.model.fit([state, local_map], target, epochs=1, verbose=0)
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
+
+    def decay_learning_rate(self):
+        self.learning_rate *= self.learning_rate_decay
 
     def load(self, name, name2):
         self.model.load_weights(name)

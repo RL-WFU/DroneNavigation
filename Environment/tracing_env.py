@@ -13,7 +13,7 @@ class Trace(Env):
         # Set reward values
         self.MINING_REWARD = 200
         self.COVERAGE_REWARD = 200
-        self.VISITED_PENALTY = -15
+        self.VISITED_PENALTY = -10
         self.HOVER_PENALTY = -10
 
     def reset_tracing(self, row, col):
@@ -24,7 +24,8 @@ class Trace(Env):
         state = np.append(state, 1)
         state = np.append(state, 1)
         state = np.append(state, 1)
-        state = np.reshape(state, [1, 1, self.vision_size + 4])
+        state = np.append(state, self.calculate_covered('region'))
+        state = np.reshape(state, [1, 1, self.vision_size + 5])
 
         self.__class__.row_position = row
         self.__class__.col_position = col
@@ -105,7 +106,8 @@ class Trace(Env):
         state = np.append(state, self.visited[self.__class__.row_position, self.__class__.col_position + 1])
         state = np.append(state, self.visited[self.__class__.row_position - 1, self.__class__.col_position])
         state = np.append(state, self.visited[self.__class__.row_position, self.__class__.col_position + 1])
-        state = np.reshape(state, [1, 1, self.vision_size + 4])
+        state = np.append(state, self.calculate_covered('region'))
+        state = np.reshape(state, [1, 1, self.vision_size + 5])
 
         return state, flattened_local_map, reward, self.done
 
@@ -155,10 +157,10 @@ class Trace(Env):
         if self.local_map_lower_col < 0:
             self.local_map_lower_col = 0
             self.local_map_upper_col = 24
-        if self.local_map_upper_row > 180:
+        if self.local_map_upper_row > 179:
             self.local_map_upper_row = 179
             self.local_map_lower_row = 155
-        if self.local_map_upper_col > 180:
+        if self.local_map_upper_col > 179:
             self.local_map_upper_col = 179
             self.local_map_lower_col = 155
 

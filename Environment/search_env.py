@@ -41,6 +41,7 @@ class Search(Env):
         state = np.append(state, 1)
         state = np.append(state, self.local_target[0] - self.__class__.row_position)
         state = np.append(state, self.local_target[1] - self.__class__.col_position)
+        #state = np.append(state, self.calculate_covered('region'))
         state = np.reshape(state, [1, 1, self.vision_size + 6])
 
         return state, flattened_local_map
@@ -123,6 +124,7 @@ class Search(Env):
         state = np.append(state, self.visited[self.__class__.row_position, self.__class__.col_position + 1])
         state = np.append(state, self.local_target[0] - self.__class__.row_position)
         state = np.append(state, self.local_target[1] - self.__class__.col_position)
+        #state = np.append(state, self.calculate_covered('region'))
         state = np.reshape(state, [1, 1, self.vision_size + 6])
 
         return state, flattened_local_map, reward, self.done

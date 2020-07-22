@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def search_episode(search, searching_agent, batch_size, row_position, col_position):
+def search_episode(search, searching_agent, row_position, col_position):
     Transition = collections.namedtuple("Transition",
                                         ["state", "local_map", "action", "reward", "next_state", "next_local_map",
                                          "done"])
@@ -14,13 +14,12 @@ def search_episode(search, searching_agent, batch_size, row_position, col_positi
     state, local_map = search.reset_search(row_position, col_position)
 
     for time in range(config.max_steps_search):
-        states = np.zeros([1, 5, 29])
-        local_maps = np.zeros([1, 5, 625])
         if time < 5:
             action = np.random.randint(0, 5)
         else:
             states, local_maps = get_last_t_states(5, episode, search.vision_size + 6)
-            action = searching_agent.act(states, local_maps)
+            action_values = searching_agent.predict([states, local_maps])
+            action = np.argmax(action_values[0])
 
         next_state, next_local_map, reward, done = search.step(action, time)
         total_reward += reward
@@ -31,22 +30,16 @@ def search_episode(search, searching_agent, batch_size, row_position, col_positi
 
         state = next_state
         local_map = next_local_map
-        if time > 5:
-            next_states, next_local_maps = get_last_t_states(5, episode, search.vision_size + 6)
-            searching_agent.memorize(states, local_maps, action, reward, next_states, next_local_maps, done)
 
         if done:
-            searching_agent.update_target_model()
             break
 
-        if len(searching_agent.memory) > batch_size:
-            searching_agent.replay(batch_size)
         t = time
 
     return total_reward, t, search.row_position, search.col_position
 
 
-def trace_episode(trace, tracing_agent, batch_size, row_position, col_position, target=None):
+def trace_episode(trace, tracing_agent, row_position, col_position, target=None):
     Transition = collections.namedtuple("Transition",
                                         ["state", "local_map", "action", "reward", "next_state", "next_local_map",
                                          "done"])
@@ -55,14 +48,14 @@ def trace_episode(trace, tracing_agent, batch_size, row_position, col_position, 
     t = 0
     state, local_map = trace.reset_tracing(row_position, col_position)
     coverage = trace.calculate_covered('mining')
+
     for time in range(config.max_steps_trace):
-        states = np.zeros([1, 5, 30])
-        local_maps = np.zeros([1, 5, 625])
         if time < 5:
             action = np.random.randint(0, 5)
         else:
             states, local_maps = get_last_t_states(5, episode, trace.vision_size + 5)
-            action = tracing_agent.act(states, local_maps)
+            action_values = tracing_agent.predict([states, local_maps])
+            action = np.argmax(action_values[0])
 
         next_state, next_local_map, reward, done = trace.step(action, time)
         total_reward += reward
@@ -73,16 +66,9 @@ def trace_episode(trace, tracing_agent, batch_size, row_position, col_position, 
 
         state = next_state
         local_map = next_local_map
-        if time > 5:
-            next_states, next_local_maps = get_last_t_states(5, episode, trace.vision_size + 5)
-            tracing_agent.memorize(states, local_maps, action, reward, next_states, next_local_maps, done)
 
         if done:
-            tracing_agent.update_target_model()
             break
-
-        if len(tracing_agent.memory) > batch_size:
-            tracing_agent.replay(batch_size)
 
         if target is not None:
             if (time + 1) % 100 == 0:
@@ -132,46 +118,35 @@ def get_last_t_minus_one_states(t, episode, size):
 
     return states, maps
 
-
-def save_weights(num, agent, name):
-    agent.save('Training_results/Weights/' + str(name) + '_' + str(num) + '.h5', 'Training_results/Weights/' + str(name) + '_' + str(num) + '_target.h5')
-    print('weights saved')
-
-
-def save_model(num, agent, name):
-    agent.model.save('Training_results/Weights/' + str(name) + '_' + str(num) + '.h5', 'Training_results/Weights/' + str(name) + '_' + str(num) + '_target.h5')
-    print('model saved')
-
-
 def save_plots(num, agent, folder, average_rewards=None, episode_rewards=None, episode_covered=None, mining_coverage=None):
-    agent.save_local_map('Training_results/ddrqn_local_map' + str(num) + '.jpg')
-    agent.plot_path('Training_results/ddrqn_drone_path' + str(num) + '.jpg')
-    agent.save_map('Training_results/ddrqn_map' + str(num) + '.jpg')
+    agent.save_local_map('Testing_results/ddrqn_local_map' + str(num) + '.jpg')
+    agent.plot_path('Testing_results/ddrqn_drone_path' + str(num) + '.jpg')
+    agent.save_map('Testing_results/ddrqn_map' + str(num) + '.jpg')
 
     if average_rewards is not None:
         plt.plot(average_rewards)
         plt.ylabel('Averaged Episode reward')
         plt.xlabel('Episode')
-        plt.savefig('Training_results/' + str(folder) + '/ddrqn_average_reward.png')
+        plt.savefig('Testing_results/' + str(folder) + '/ddrqn_average_reward.png')
         plt.clf()
 
     if episode_rewards is not None:
         plt.plot(episode_rewards)
         plt.ylabel('Episode reward')
         plt.xlabel('Episode')
-        plt.savefig('Training_results/' + str(folder) + '/ddrqn_reward.png')
+        plt.savefig('Testing_results/' + str(folder) + '/ddrqn_reward.png')
         plt.clf()
 
     if episode_covered is not None:
         plt.plot(episode_covered)
         plt.ylabel('Percent Covered')
         plt.xlabel('Episode')
-        plt.savefig('Training_results/ddrqn_coverage.png')
+        plt.savefig('Testing_results/ddrqn_coverage.png')
         plt.clf()
 
     if mining_coverage is not None:
         plt.plot(mining_coverage)
-        plt.ylabel('Iteration')
-        plt.xlabel('Episode Mining Coverage')
-        plt.savefig('Training_results/mining_coverage2.png')
+        plt.xlabel('Iteration')
+        plt.ylabel('Episode Mining Coverage')
+        plt.savefig('Testing_results/mining_coverage.png')
         plt.clf()

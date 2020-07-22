@@ -17,10 +17,13 @@ class SelectTarget(Env):
         # Set reward values
         self.MINING_REWARD = 100
         self.DISTANCE_PENALTY = -2
-        self.COVERED_PENALTY = -1200
+        self.COVERED_PENALTY = -1500
         self.HOVER_PENALTY = -100
 
-    def set_target(self, next_target):
+    def set_target(self, next_target, row, col):
+        self.__class__.row_position = row
+        self.__class__.col_position = col
+
         self.current_target = self.targets[next_target]
 
         self.update_regions()
@@ -39,7 +42,12 @@ class SelectTarget(Env):
             hover = True
 
         reward = self.region_values[next_target, 0]*self.MINING_REWARD + self.region_values[next_target, 1]*self.COVERED_PENALTY + \
-            self.region_values[next_target, 2]*self.DISTANCE_PENALTY
+            self.region_values[next_target, 2]*self.DISTANCE_PENALTY + hover*self.HOVER_PENALTY
+
+        if next_target == self.select_next_target(self.__class__.row_position, self.__class__.col_position):
+            print('selected correct target')
+        else:
+            print('selected wrong target. difference in value: ', self.target_value - reward)
 
         return reward
 
@@ -94,6 +102,7 @@ class SelectTarget(Env):
                 next_targets[i] += self.HOVER_PENALTY
 
         # print(self.region_values)
+        self.target_value = np.amax(next_targets)
         return np.argmax(next_targets)
 
     def simple_select(self):

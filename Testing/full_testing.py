@@ -2,40 +2,38 @@ from ddrqn import *
 from Environment.search_env import *
 from Environment.tracing_env import *
 from Environment.target_selector_env import *
-from Training.training_helper import *
+from Testing.testing_helper import *
 
 """
-Trains the searching network to navigate to target
+Tests the full model
 
-For best results: train search and trace networks first, then train with target_cost=True (use cost function to 
-select next target), then train full network 
-
-Saves plotting to Training_results/Search and Training_results/Trace and Training_results/Target
+Saves plotting to Test_results/Search and Test_results/Trace and Training_results/Target
 """
 
 
-def train_full_model(target_cost=False, search_weights=None, trace_weights=None, target_weights=None):
+def test_full_model(target_cost=False, search_weights=None, trace_weights=None, target_weights=None):
     # Initialize environment and ddrqn agents
     search = Search()
     trace = Trace()
     target = SelectTarget()
     action_size = search.num_actions
-    searching_agent = DDRQNAgent(search.vision_size+6, action_size)
-    if search_weights is not None:
-        searching_agent.load(search_weights + '.h5', search_weights + '_target.h5')
+    #searching_agent = DDRQNAgent(search.vision_size+6, action_size, training=False)
+    #if search_weights is not None:
+        #searching_agent.load(search_weights + '.h5', search_weights + '_target.h5')
+    searching_agent = keras.models.load_model('Training_results/Weights/search_full_model_B_3.h5')
 
-    tracing_agent = DDRQNAgent(trace.vision_size + 5, action_size)
-    if trace_weights is not None:
-        tracing_agent.load(trace_weights + '.h5', trace_weights + '_target.h5')
+    # tracing_agent = DDRQNAgent(trace.vision_size + 4, action_size, training=False)
+    # if trace_weights is not None:
+        # tracing_agent.load(trace_weights + '.h5', trace_weights + '_target.h5')
         # tracing_agent.load('full_tracing_model_weights.h5', 'full_tracing_target_model_weights.h5')
+    tracing_agent = keras.models.load_model('Training_results/Weights/trace_full_model_B_3.h5')
 
     if not target_cost:
-        selection_agent = DDRQNAgent(config.num_targets * 3, config.num_targets)
+        selection_agent = DDRQNAgent(config.num_targets * 3, config.num_targets, training=False)
         if target_weights is not None:
             selection_agent.load(target_weights + '.h5', target_weights + '_target.h5')
 
     done = False
-    batch_size = 48
 
     # Initialize episode logging
     search_rewards = []
@@ -80,7 +78,7 @@ def train_full_model(target_cost=False, search_weights=None, trace_weights=None,
             print('Total Steps:', t)
 
             # Complete one searching episode
-            reward, steps, row_position, col_position = search_episode(search, searching_agent, batch_size,
+            reward, steps, row_position, col_position = search_episode(search, searching_agent,
                                                                        trace.row_position, trace.col_position)
             search_rewards.append(reward)
             search_covered.append(search.calculate_covered('mining'))
@@ -101,13 +99,10 @@ def train_full_model(target_cost=False, search_weights=None, trace_weights=None,
                 save_plots(e + 1, search, 'Search', search_average_rewards, search_rewards,
                            mining_coverage=search_covered)
 
-            save_plots(e + 1, search, 'Search')
+            save_plots(e, search, 'Search')
             print("search episode: {} - {}, reward: {}, mining covered: {}, start position: {},{}, number of steps: {}"
-                  .format(search_episode_num+1 % (e+1), e+1, reward, search_covered[search_episode_num],
+                  .format((search_episode_num+1 % (e+1)), e+1, reward, search_covered[search_episode_num],
                           trace.row_position, trace.col_position, steps))
-
-            if search_episode_num > 20 and search_episode_num % 20 == 0:
-                searching_agent.decay_learning_rate()
 
             search_episode_num += 1
             t += steps
@@ -119,7 +114,7 @@ def train_full_model(target_cost=False, search_weights=None, trace_weights=None,
             target.transfer_map(search.map)
 
             # Complete one tracing episode
-            reward, steps, row_position, col_position = trace_episode(trace, tracing_agent, batch_size,
+            reward, steps, row_position, col_position = trace_episode(trace, tracing_agent,
                                                                       search.row_position, search.col_position, target)
             trace_rewards.append(reward)
             trace_covered.append(trace.calculate_covered('mining'))
@@ -140,13 +135,10 @@ def train_full_model(target_cost=False, search_weights=None, trace_weights=None,
                 save_plots(e + 1, trace, 'Trace', trace_average_rewards, trace_rewards,
                            mining_coverage=trace_covered)
 
-            save_plots(e + 1, trace, 'Trace')
+            save_plots(e, trace, 'Trace')
             print("trace episode: {} - {}, reward: {}, mining covered: {}, start position: {},{}, number of steps: {}"
-                  .format(trace_episode_num+1 % (e+1), e+1, reward, trace_covered[trace_episode_num],
+                  .format((trace_episode_num+1 % (e+1)), e+1, reward, trace_covered[trace_episode_num],
                           search.row_position, search.col_position, steps))
-
-            if search_episode_num > 20 and search_episode_num % 20 == 0:
-                tracing_agent.decay_learning_rate()
 
             trace_episode_num += 1
             t += steps
@@ -182,15 +174,6 @@ def train_full_model(target_cost=False, search_weights=None, trace_weights=None,
                     next_states, next_local_maps = get_last_t_states(5, episode, config.num_targets*3)
                     selection_agent.memorize(states, local_maps, action, reward, next_states, next_local_maps, done)
 
-                if target.calculate_covered('mining') >= .7:
-                    selection_agent.update_target_model()
-
-                if len(selection_agent.memory) > batch_size:
-                    selection_agent.replay(batch_size)
-
-                if iteration > 20 and iteration % 20 == 0:
-                    selection_agent.decay_learning_rate()
-
                 iteration += 1
 
             # Update all environments
@@ -222,7 +205,3 @@ def train_full_model(target_cost=False, search_weights=None, trace_weights=None,
               .format(e+1, t, target.calculate_covered('mining'), target.calculate_covered('map')))
         print('***********')
 
-        save_model(e + 1, searching_agent, 'search_full_model_B')
-        save_model(e + 1, tracing_agent, 'trace_full_model_B')
-        if not target_cost:
-            save_model(e + 1, selection_agent, 'target_selection_full_model_weights_B')

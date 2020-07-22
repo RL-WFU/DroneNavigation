@@ -14,18 +14,19 @@ def train_tracing_agent(weights=None):
     trace = Trace()
     action_size = trace.num_actions
 
-    tracing_agent = DDRQNAgent(trace.vision_size + 6, action_size)
+    tracing_agent = DDRQNAgent(trace.vision_size + 5, action_size)
     if weights is not None:
         tracing_agent.load(weights + '.h5', weights + '_target.h5')
+    # tracing_agent.load('tracing_model_weights.h5', 'tracing_target_model_weights.h5')
 
     done = False
-    batch_size = 32
+    batch_size = 48
 
     # Initialize episode logging
     episode_rewards = []
     episode_covered = []
     episode_steps = []
-    average_over = int(config.num_episodes / 10)
+    average_over = 20
     average_rewards = []
     average_r = deque(maxlen=average_over)
 
@@ -39,6 +40,9 @@ def train_tracing_agent(weights=None):
 
         average_r.append(reward)
 
+        if episode > 40 and episode % 20 == 0:
+            tracing_agent.decay_learning_rate()
+
         if episode < average_over:
             r = 0
             for i in range(episode):
@@ -51,9 +55,11 @@ def train_tracing_agent(weights=None):
         if episode % average_over == 0:
             save_plots(episode+1, trace, 'Trace', average_rewards, episode_rewards, mining_coverage=episode_covered)
 
+        save_plots(0, trace, 'Trace')
+
         print("episode: {}/{}, reward: {}, percent covered: {}, start position: {},{}, number of steps: {}"
               .format(episode+1, config.num_episodes, reward, episode_covered[episode], trace.start_row,
                       trace.start_col, steps))
 
-    save_weights(1, trace, 'trace_model_weights')
+        save_weights(1, tracing_agent, 'trace_model_weights_B')
 

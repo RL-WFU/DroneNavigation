@@ -163,6 +163,8 @@ for e in range(config.num_episodes):
                         break
                 coverage = new_coverage
 
+                tracing_agent.save('full_tracing_model_weights_test.h5', 'full_tracing_target_model_weights_test.h5')
+
             t = time
 
         steps += t
