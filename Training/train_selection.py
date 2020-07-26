@@ -22,13 +22,13 @@ def train_selection(target_cost=False, target_weights=None):
     trace = Trace()
     target = SelectTarget()
     action_size = search.num_actions
-    searching_agent = keras.models.load_model('Training_results/Weights/search_full_model_B_3.h5')
+    searching_agent = tf.keras.models.load_model('Training_results/Weights/search_full_model_B_3.h5')
 
-    tracing_agent = keras.models.load_model('Training_results/Weights/trace_full_model_B_3.h5')
+    tracing_agent = tf.keras.models.load_model('Training_results/Weights/trace_full_model_B_3.h5')
 
     if not target_cost:
         selection_agent = DDQNAgent(config.num_targets * 3, config.num_targets)
-        temp_model = keras.models.load_model('Training_results/Weights/target_selection_full_model_weights_C_390.h5')
+        temp_model = tf.keras.models.load_model('Training_results/Weights/target_selection_full_model_weights_C_390.h5')
         temp_model.save_weights('temp.h5')
         selection_agent.load('temp.h5', 'temp.h5')
         #if target_weights is not None:

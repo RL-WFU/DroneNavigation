@@ -18,8 +18,7 @@ def search_episode(search, searching_agent, row_position, col_position):
             action = np.random.randint(0, 5)
         else:
             states, local_maps = get_last_t_states(5, episode, search.vision_size + 6)
-            action_values = searching_agent.predict([states, local_maps])
-            action = np.argmax(action_values[0])
+            action = searching_agent.act(states, local_maps)
 
         next_state, next_local_map, reward, done = search.step(action, time)
         total_reward += reward
@@ -53,9 +52,8 @@ def trace_episode(trace, tracing_agent, row_position, col_position, target=None)
         if time < 5:
             action = np.random.randint(0, 5)
         else:
-            states, local_maps = get_last_t_states(5, episode, trace.vision_size + 5)
-            action_values = tracing_agent.predict([states, local_maps])
-            action = np.argmax(action_values[0])
+            states, local_maps = get_last_t_states(5, episode, trace.vision_size + 4)
+            action = tracing_agent.act(states, local_maps)
 
         next_state, next_local_map, reward, done = trace.step(action, time)
         total_reward += reward

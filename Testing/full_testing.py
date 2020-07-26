@@ -1,4 +1,5 @@
 from ddrqn import *
+from A2C import *
 from ddqn_modified import *
 from Environment.search_env import *
 from Environment.tracing_env import *
@@ -18,16 +19,25 @@ def test_full_model(target_cost=False, search_weights=None, trace_weights=None, 
     trace = Trace()
     target = SelectTarget()
     action_size = search.num_actions
-    #searching_agent = DDRQNAgent(search.vision_size+6, action_size, training=False)
-    #if search_weights is not None:
-        #searching_agent.load(search_weights + '.h5', search_weights + '_target.h5')
-    searching_agent = keras.models.load_model('Training_results/Weights/search_full_model_B_3.h5')
+    searching_agent = DDRQNAgent(search.vision_size+6, action_size, training=False)
+
+    if search_weights is not None:
+        searching_agent.load(search_weights + '.h5', search_weights + '_target.h5')
+
+    sess = tf.Session()
+    # searching_agent = tf.keras.models.load_model('Training_results/Weights/search_full_model_B_3.h5')
 
     # tracing_agent = DDRQNAgent(trace.vision_size + 4, action_size, training=False)
     # if trace_weights is not None:
         # tracing_agent.load(trace_weights + '.h5', trace_weights + '_target.h5')
         # tracing_agent.load('full_tracing_model_weights.h5', 'full_tracing_target_model_weights.h5')
-    tracing_agent = keras.models.load_model('Training_results/Weights/trace_full_model_B_3.h5')
+    # tracing_agent = tf.keras.models.load_model('Training_results/Weights/trace_full_model_B_3.h5')
+
+    tracing_agent = A2CAgent(trace.vision_size + 4, action_size, 'Trace', sess)
+
+    sess.run(tf.global_variables_initializer())
+    if trace_weights is not None:
+        tracing_agent.load(trace_weights + '_policy', trace_weights + '_value')
 
     if not target_cost:
         selection_agent = DDQNAgent(config.num_targets * 3, config.num_targets, training=False)
@@ -52,6 +62,8 @@ def test_full_model(target_cost=False, search_weights=None, trace_weights=None, 
     trace_average_r = deque(maxlen=average_over)
     trace_episode_num = 0
 
+    total_steps = []
+
     if not target_cost:
         target_selection_rewards = []
         target_selection_average_rewards = []
@@ -72,7 +84,7 @@ def test_full_model(target_cost=False, search_weights=None, trace_weights=None, 
             target_selection_state = np.zeros([1, 27])
             iteration = 0
 
-        while t < 20000:
+        while target.calculate_covered('mining') < .7:
             mining = target.calculate_covered('mining')
             print('Mining Coverage:', mining)
             mining_coverage.append(mining)
@@ -156,12 +168,14 @@ def test_full_model(target_cost=False, search_weights=None, trace_weights=None, 
             else:
                 states = np.zeros([1, 5, 27])
                 local_maps = np.zeros([1, 5, 625])
+
                 if iteration < 5:
                     action = target.select_next_target(trace.row_position, trace.col_position)
                 else:
                     states, local_maps = get_last_t_states(5, episode, config.num_targets*3)
                     action = selection_agent.act(states, local_maps)
 
+                # action = target.select_next_target(trace.row_position, trace.col_position)
                 next_target, next_state, reward = target.set_target(action, trace.row_position, trace.col_position)
                 target_selection_reward += reward
 
@@ -197,12 +211,19 @@ def test_full_model(target_cost=False, search_weights=None, trace_weights=None, 
                 target_selection_average_rewards.append(sum(target_selection_average_r) / average_over)
 
             if e % average_over == 0:
-                save_plots(e + 1, target, 'Target', target_selection_average_rewards, target_selection_reward)
+                save_plots(e + 1, target, 'Target', target_selection_average_rewards, target_selection_rewards)
 
             print("trace episode: {}/{}, reward: {}".format(e+1, config.num_episodes, sum(target_selection_rewards)))
 
+        total_steps.append(t)
         print('***********')
         print("EPISODE {} COMPLETE: Steps -- {}, Mining Coverage -- {}, Total Coverage: {}, Target Selection Reward -- {}"
               .format(e+1, t, target.calculate_covered('mining'), target.calculate_covered('map'), target_selection_reward))
         print('***********')
+
+    plt.plot(total_steps)
+    plt.xlabel('Episode')
+    plt.ylabel('Total Steps Taken')
+    plt.savefig('Testing_results/steps.png')
+    plt.clf()
 

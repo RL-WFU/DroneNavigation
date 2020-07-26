@@ -1,10 +1,11 @@
 import random
 import numpy as np
 from collections import deque
-from tensorflow import keras
-from keras.models import Sequential, Model
-from keras.layers import Dense, concatenate, Input, LSTM
-from keras.optimizers import Adam
+import tensorflow as tf
+from tensorflow.keras.backend import manual_variable_initialization
+from tensorflow.keras.models import Sequential, Model
+from tensorflow.keras.layers import Dense, concatenate, Input, LSTM
+from tensorflow.keras.optimizers import Adam
 
 
 class DDRQNAgent:
@@ -40,6 +41,7 @@ class DDRQNAgent:
         model = Model(inputs=[first_input, second_input], outputs=layer3)
         model.compile(loss='mse',
                       optimizer=Adam(lr=self.learning_rate))
+        manual_variable_initialization(True)
         return model
 
     def update_target_model(self):

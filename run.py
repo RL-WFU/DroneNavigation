@@ -22,16 +22,16 @@ if __name__ == '__main__':
             train_search_agent(args.search_weights)
 
         elif args.train_model == 'trace':
-            train_tracing_agent('Training_results/Weights/trace_model_weights_B_1')
+            train_tracing_agent('Weights_final/trace_weights')
 
         elif args.train_model == 'selection':
             train_selection(not args.target_selection)
 
         elif args.train_model == 'full':
             train_full_model(not args.target_selection, 'Training_results/Weights/search_full_model_weights_1',
-                             'Training_results/Weights/trace_model_weights_B_1', args.target_selection_weights)
+                             'trace_weights', args.target_selection_weights)
 
     else:
         print('Testing...')
         test_full_model(not args.target_selection, 'Training_results/Weights/search_full_model_weights_B_1',
-                        'Training_results/Weights/trace_full_model_weights_B_1', 'Training_results/Weights/target_selection_full_model_weights_d_375')
+                        'trace_weights', 'Training_results/Weights/target_selection_full_model_weights_d_375')

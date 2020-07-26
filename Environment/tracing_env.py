@@ -24,8 +24,8 @@ class Trace(Env):
         state = np.append(state, 1)
         state = np.append(state, 1)
         state = np.append(state, 1)
-        state = np.append(state, self.calculate_covered('region'))
-        state = np.reshape(state, [1, 1, self.vision_size + 5])
+        # state = np.append(state, self.calculate_covered('region'))
+        state = np.reshape(state, [1, 1, self.vision_size + 4])
 
         self.__class__.row_position = row
         self.__class__.col_position = col
@@ -106,8 +106,8 @@ class Trace(Env):
         state = np.append(state, self.visited[self.__class__.row_position, self.__class__.col_position + 1])
         state = np.append(state, self.visited[self.__class__.row_position - 1, self.__class__.col_position])
         state = np.append(state, self.visited[self.__class__.row_position, self.__class__.col_position + 1])
-        state = np.append(state, self.calculate_covered('region'))
-        state = np.reshape(state, [1, 1, self.vision_size + 5])
+        # state = np.append(state, self.calculate_covered('region'))
+        state = np.reshape(state, [1, 1, self.vision_size + 4])
 
         return state, flattened_local_map, reward, self.done
 
