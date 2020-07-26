@@ -1,4 +1,4 @@
-from ddrqn import *
+from ddrqn3 import *
 from A2C import *
 from ddqn_modified import *
 from Environment.search_env import *
@@ -19,12 +19,9 @@ def test_full_model(target_cost=False, search_weights=None, trace_weights=None, 
     trace = Trace()
     target = SelectTarget()
     action_size = search.num_actions
-    searching_agent = DDRQNAgent(search.vision_size+6, action_size, training=False)
-
-    if search_weights is not None:
-        searching_agent.load(search_weights + '.h5', search_weights + '_target.h5')
-
     sess = tf.Session()
+    searching_agent = DDRQNAgent(search.vision_size+6, action_size, 'Search', sess)
+
     # searching_agent = tf.keras.models.load_model('Training_results/Weights/search_full_model_B_3.h5')
 
     # tracing_agent = DDRQNAgent(trace.vision_size + 4, action_size, training=False)
@@ -35,14 +32,17 @@ def test_full_model(target_cost=False, search_weights=None, trace_weights=None, 
 
     tracing_agent = A2CAgent(trace.vision_size + 4, action_size, 'Trace', sess)
 
+    if not target_cost:
+        selection_agent = DDRQNAgent(config.num_targets * 3 + 1, config.num_targets, 'Target', sess, True)
+
     sess.run(tf.global_variables_initializer())
+
+    if search_weights is not None:
+        searching_agent.load(search_weights + '_model', search_weights + '_target')
     if trace_weights is not None:
         tracing_agent.load(trace_weights + '_policy', trace_weights + '_value')
-
-    if not target_cost:
-        selection_agent = DDQNAgent(config.num_targets * 3, config.num_targets, training=False)
-        if target_weights is not None:
-            selection_agent.load(target_weights + '.h5', target_weights + '_target.h5')
+    if target_weights is not None and not target_cost:
+        selection_agent.load(target_weights + '_model', target_weights + '_target')
 
     done = False
 
@@ -168,14 +168,14 @@ def test_full_model(target_cost=False, search_weights=None, trace_weights=None, 
             else:
                 states = np.zeros([1, 5, 27])
                 local_maps = np.zeros([1, 5, 625])
-
+                '''
                 if iteration < 5:
                     action = target.select_next_target(trace.row_position, trace.col_position)
                 else:
                     states, local_maps = get_last_t_states(5, episode, config.num_targets*3)
                     action = selection_agent.act(states, local_maps)
-
-                # action = target.select_next_target(trace.row_position, trace.col_position)
+                '''
+                action = target.select_next_target(trace.row_position, trace.col_position)
                 next_target, next_state, reward = target.set_target(action, trace.row_position, trace.col_position)
                 target_selection_reward += reward
 
@@ -184,10 +184,6 @@ def test_full_model(target_cost=False, search_weights=None, trace_weights=None, 
                     next_state=next_state, next_local_map=trace.local_map, done=done))
 
                 target_selection_state = next_state
-
-                if iteration > 5:
-                    next_states, next_local_maps = get_last_t_states(5, episode, config.num_targets*3)
-                    selection_agent.memorize(states, local_maps, action, reward, next_states, next_local_maps, done)
 
                 iteration += 1
 
@@ -221,9 +217,9 @@ def test_full_model(target_cost=False, search_weights=None, trace_weights=None, 
               .format(e+1, t, target.calculate_covered('mining'), target.calculate_covered('map'), target_selection_reward))
         print('***********')
 
-    plt.plot(total_steps)
-    plt.xlabel('Episode')
-    plt.ylabel('Total Steps Taken')
-    plt.savefig('Testing_results/steps.png')
-    plt.clf()
+        plt.plot(total_steps)
+        plt.xlabel('Episode')
+        plt.ylabel('Total Steps Taken')
+        plt.savefig('Testing_results/steps.png')
+        plt.clf()
 

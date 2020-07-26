@@ -33,5 +33,5 @@ if __name__ == '__main__':
 
     else:
         print('Testing...')
-        test_full_model(not args.target_selection, 'Training_results/Weights/search_full_model_weights_B_1',
-                        'trace_weights', 'Training_results/Weights/target_selection_full_model_weights_d_375')
+        test_full_model(not args.target_selection, 'search_weights',
+                        'trace_weights')
