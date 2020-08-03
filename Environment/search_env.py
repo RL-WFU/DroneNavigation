@@ -10,6 +10,7 @@ class Search(Env):
 
         # Set simulation
         self.set_simulation_map()
+        self.sim.showMap()
 
         # Set task-specific parameters
         self.num_actions = 5
