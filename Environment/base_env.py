@@ -192,23 +192,17 @@ class Env:
         sets the pixel value thresholds for ICRS classification
         :return: void
         """
-        # Simulate classification of mining areas
-        lower = np.array([80, 90, 70])
-        upper = np.array([100, 115, 150])
+        # Simulate classification of areas of interest
+        lower = np.array([0, 0, 230])
+        upper = np.array([160, 160, 400])
         interest_value = 1  # Mark these areas as being of highest interest
-        self.sim.classify('Mining', lower, upper, interest_value)
+        self.sim.classify('Area of Interest', lower, upper, interest_value)
 
-        # Simulate classification of forest areas
-        lower = np.array([0, 49, 0])
-        upper = np.array([80, 157, 138])
+        # Simulate classification of obstacles
+        lower = np.array([200, 50, 50])
+        upper = np.array([400, 200, 200])
         interest_value = 0  # Mark these areas as being of no interest
-        self.sim.classify('Forest', lower, upper, interest_value)
-
-        # Simulate classification of water
-        lower = np.array([92, 100, 90])
-        upper = np.array([200, 190, 200])
-        interest_value = 0  # Mark these areas as being of no interest
-        self.sim.classify('Water', lower, upper, interest_value)
+        self.sim.classify('Obstacle', lower, upper, interest_value)
 
         self.sim.setMapSize(self.totalRows, self.totalCols)
         self.sim.createMap()
